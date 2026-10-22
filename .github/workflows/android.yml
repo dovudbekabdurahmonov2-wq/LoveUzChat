@@ -1,0 +1,360 @@
+
+name: Build LoveUz Chat APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Create Android project
+        run: |
+          mkdir -p app/src/main/java/uz/loveuz/chat
+          mkdir -p app/src/main/res/values
+
+          cat > settings.gradle <<'EOF'
+          pluginManagement {
+              repositories {
+                  google()
+                  mavenCentral()
+                  gradlePluginPortal()
+              }
+          }
+          dependencyResolutionManagement {
+              repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+              repositories {
+                  google()
+                  mavenCentral()
+              }
+          }
+          rootProject.name = "LoveUzChat"
+          include ':app'
+          EOF
+
+          cat > build.gradle <<'EOF'
+          plugins {
+              id 'com.android.application' version '8.7.3' apply false
+          }
+          EOF
+
+          cat > app/build.gradle <<'EOF'
+          plugins {
+              id 'com.android.application'
+          }
+
+          android {
+              namespace 'uz.loveuz.chat'
+              compileSdk 35
+
+              defaultConfig {
+                  applicationId 'uz.loveuz.chat'
+                  minSdk 23
+                  targetSdk 35
+                  versionCode 1
+                  versionName '1.0'
+              }
+          }
+          EOF
+
+          cat > app/src/main/AndroidManifest.xml <<'EOF'
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+              <application
+                  android:theme="@style/AppTheme"
+                  android:label="LoveUz Chat"
+                  android:usesCleartextTraffic="false">
+                  <activity
+                      android:name=".MainActivity"
+                      android:exported="true">
+                      <intent-filter>
+                          <action android:name="android.intent.action.MAIN"/>
+                          <category android:name="android.intent.category.LAUNCHER"/>
+                      </intent-filter>
+                  </activity>
+              </application>
+          </manifest>
+          EOF
+
+          cat > app/src/main/res/values/styles.xml <<'EOF'
+          <resources>
+              <style name="AppTheme" parent="@android:style/Theme.Material.NoActionBar">
+                  <item name="android:fontFamily">sans</item>
+                  <item name="android:colorAccent">#D946EF</item>
+                  <item name="android:statusBarColor">#0B0B12</item>
+                  <item name="android:navigationBarColor">#0B0B12</item>
+                  <item name="android:windowLightStatusBar">false</item>
+                  <item name="android:windowActionModeOverlay">true</item>
+              </style>
+          </resources>
+          EOF
+
+          cat > app/src/main/java/uz/loveuz/chat/MainActivity.java <<'EOF'
+          package uz.loveuz.chat;
+
+          import android.app.*;
+          import android.os.*;
+          import android.graphics.Color;
+          import android.graphics.Typeface;
+          import android.graphics.drawable.GradientDrawable;
+          import android.view.*;
+          import android.view.inputmethod.InputMethodManager;
+          import android.content.Context;
+          import android.widget.*;
+          import android.text.Editable;
+          import android.text.TextWatcher;
+          import java.util.*;
+
+          public class MainActivity extends Activity {
+              int bg = Color.rgb(11,11,18);
+              int panel = Color.rgb(25,23,36);
+              int pink = Color.rgb(217,70,239);
+              LinearLayout root, body;
+              EditText search;
+              ArrayList<String> messages = new ArrayList<>();
+              String[] names = {"Gulnoza, 20", "Madina, 21", "Aziza, 19",
+                  "Malika, 22", "Sardor, 23", "Jasur, 21"};
+              String[] cities = {"Andijon", "Toshkent", "Samarqand",
+                  "Farg‘ona", "Namangan", "Buxoro"};
+
+              public void onCreate(Bundle b) {
+                  super.onCreate(b);
+                  getWindow().setStatusBarColor(bg);
+                  getWindow().setNavigationBarColor(bg);
+                  showHome();
+              }
+
+              GradientDrawable shape(int color, int radius) {
+                  GradientDrawable d = new GradientDrawable();
+                  d.setColor(color);
+                  d.setCornerRadius(radius);
+                  return d;
+              }
+
+              TextView text(String s, int size) {
+                  TextView t = new TextView(this);
+                  t.setText(s);
+                  t.setTextSize(size);
+                  t.setTextColor(Color.WHITE);
+                  return t;
+              }
+
+              LinearLayout column() {
+                  LinearLayout l = new LinearLayout(this);
+                  l.setOrientation(LinearLayout.VERTICAL);
+                  l.setPadding(20,12,20,12);
+                  return l;
+              }
+
+              void base(String title) {
+                  root = column();
+                  root.setPadding(18,20,18,10);
+                  root.setBackgroundColor(bg);
+                  setContentView(root);
+
+                  TextView heading = text(title,30);
+                  heading.setTypeface(null,Typeface.BOLD);
+                  root.addView(heading);
+                  body = column();
+                  root.addView(body,new LinearLayout.LayoutParams(-1,0,1));
+              }
+
+              void button(LinearLayout parent, String label, Runnable action) {
+                  TextView v = text(label,16);
+                  v.setGravity(Gravity.CENTER);
+                  v.setPadding(14,14,14,14);
+                  v.setBackground(shape(panel,24));
+                  LinearLayout.LayoutParams p =
+                      new LinearLayout.LayoutParams(-1,-2);
+                  p.setMargins(0,7,0,7);
+                  parent.addView(v,p);
+                  v.setOnClickListener(w -> action.run());
+              }
+
+              void showHome() {
+                  base("LoveUz ❤️");
+                  TextView sub = text("Yangi tanishuvlar — yangi imkoniyatlar",15);
+                  sub.setTextColor(0xFFB7B2C5);
+                  body.addView(sub);
+                  button(body,"🔎  Odamlarni qidirish",()->showSearch());
+                  button(body,"❤️  Yoqtirganlarim",()->showLikes());
+                  button(body,"💬  Chatlar",()->showChats());
+                  button(body,"👤  Mening profilim",()->showProfile());
+                  TextView note = text(
+                      "Xush kelibsiz! Profil yaratish uchun Profil bo‘limiga kiring.",
+                      15);
+                  note.setPadding(0,22,0,0);
+                  body.addView(note);
+              }
+
+              void showSearch() {
+                  base("Qidirish");
+                  search = new EditText(this);
+                  search.setSingleLine(true);
+                  search.setHint("Ism yoki shahar...");
+                  search.setTextColor(Color.WHITE);
+                  search.setHintTextColor(0xFFAAA4B8);
+                  search.setPadding(16,12,16,12);
+                  search.setBackground(shape(panel,24));
+                  body.addView(search);
+                  LinearLayout results = column();
+                  body.addView(results);
+                  Runnable update = () -> {
+                      results.removeAllViews();
+                      String q = search.getText().toString().toLowerCase();
+                      for(int i=0;i<names.length;i++) {
+                          final String n=names[i], c=cities[i];
+                          if((n+" "+c).toLowerCase().contains(q)) {
+                              button(results,"🟣  "+n+"\\n"+c,()->showPerson(n,c));
+                          }
+                      }
+                  };
+                  search.addTextChangedListener(new TextWatcher() {
+                      public void beforeTextChanged(CharSequence s,int st,int c,int a){}
+                      public void onTextChanged(CharSequence s,int st,int before,int count){update.run();}
+                      public void afterTextChanged(Editable e){}
+                  });
+                  update.run();
+              }
+
+              void showPerson(String name,String city) {
+                  base(name);
+                  button(body,"📍  "+city,()->{});
+                  button(body,"❤️  Like bosish",()->{
+                      getPreferences(0).edit().putBoolean("like_"+name,true).apply();
+                      new AlertDialog.Builder(this).setMessage("Like saqlandi.")
+                          .setPositiveButton("OK",null).show();
+                  });
+                  button(body,"💬  Xabar yozish",()->showChat(name));
+              }
+
+              void showLikes() {
+                  base("Yoqtirganlarim");
+                  boolean found=false;
+                  for(String n:names) {
+                      if(getPreferences(0).getBoolean("like_"+n,false)) {
+                          found=true;
+                          button(body,"❤️  "+n,()->showChat(n));
+                      }
+                  }
+                  if(!found) body.addView(text("Hozircha Like yo‘q.",16));
+              }
+
+              void showChats() {
+                  base("Chatlar");
+                  for(String n:names) {
+                      if(getPreferences(0).contains("msg_"+n)) {
+                          button(body,"💬  "+n+"\\n"+
+                              getPreferences(0).getString("msg_"+n,""),
+                              ()->showChat(n));
+                      }
+                  }
+                  body.addView(text(
+                      "Suhbatni boshlash uchun Qidirish bo‘limidan profil tanlang.",
+                      15));
+              }
+
+              void showChat(String name) {
+                  base(name);
+                  TextView hint=text(
+                      "Bu hozircha mahalliy demo chat. Xabarlar shu telefonda saqlanadi.",
+                      13);
+                  hint.setTextColor(0xFFB7B2C5);
+                  body.addView(hint);
+                  ScrollView scroll=new ScrollView(this);
+                  LinearLayout list=column();
+                  scroll.addView(list);
+                  body.addView(scroll,new LinearLayout.LayoutParams(-1,0,1));
+                  String key="history_"+name;
+                  ArrayList<String> history=new ArrayList<>(
+                      getPreferences(0).getStringSet(key,new HashSet<>()));
+                  for(String m:history) list.addView(text(m,16));
+                  EditText input=new EditText(this);
+                  input.setSingleLine(true);
+                  input.setHint("Xabar yozing...");
+                  input.setTextColor(Color.WHITE);
+                  input.setHintTextColor(0xFFAAA4B8);
+                  input.setBackground(shape(panel,24));
+                  body.addView(input);
+                  button(body,"➤  Yuborish",()->{
+                      String m=input.getText().toString().trim();
+                      if(m.isEmpty()) return;
+                      history.add("Siz: "+m);
+                      getPreferences(0).edit()
+                          .putStringSet(key,new HashSet<>(history))
+                          .putString("msg_"+name,m).apply();
+                      ((InputMethodManager)getSystemService(
+                          Context.INPUT_METHOD_SERVICE))
+                          .hideSoftInputFromWindow(input.getWindowToken(),0);
+                      showChat(name);
+                  });
+              }
+
+              void showProfile() {
+                  base("Mening profilim");
+                  EditText name=new EditText(this);
+                  name.setSingleLine(true);
+                  name.setHint("Ismingiz yoki taxallusingiz");
+                  name.setTextColor(Color.WHITE);
+                  name.setHintTextColor(0xFFAAA4B8);
+                  name.setText(getPreferences(0).getString("myname",""));
+                  body.addView(name);
+                  EditText age=new EditText(this);
+                  age.setSingleLine(true);
+                  age.setInputType(2);
+                  age.setHint("Yoshingiz (18+)");
+                  age.setTextColor(Color.WHITE);
+                  age.setHintTextColor(0xFFAAA4B8);
+                  age.setText(getPreferences(0).getString("myage",""));
+                  body.addView(age);
+                  EditText city=new EditText(this);
+                  city.setSingleLine(true);
+                  city.setHint("Shahringiz");
+                  city.setTextColor(Color.WHITE);
+                  city.setHintTextColor(0xFFAAA4B8);
+                  city.setText(getPreferences(0).getString("mycity",""));
+                  body.addView(city);
+                  button(body,"💾  Profilni saqlash",()->{
+                      String a=age.getText().toString().trim();
+                      int years=0;
+                      try { years=Integer.parseInt(a); } catch(Exception e) {}
+                      if(name.getText().toString().trim().isEmpty()
+                          || years<18 || city.getText().toString().trim().isEmpty()) {
+                          new AlertDialog.Builder(this)
+                              .setMessage("Ism, 18+ yosh va shaharni to‘g‘ri kiriting.")
+                              .setPositiveButton("OK",null).show();
+                          return;
+                      }
+                      getPreferences(0).edit()
+                          .putString("myname",name.getText().toString().trim())
+                          .putString("myage",a)
+                          .putString("mycity",city.getText().toString().trim())
+                          .apply();
+                      new AlertDialog.Builder(this).setMessage("Profil telefonda saqlandi.")
+                          .setPositiveButton("OK",null).show();
+                  });
+              }
+          }
+          EOF
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
+      - name: Build debug APK
+        run: gradle assembleDebug
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: LoveUzChat-debug-apk
+          path: app/build/outputs/apk/debug/app-debug.apk
